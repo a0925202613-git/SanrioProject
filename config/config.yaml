@@ -1,0 +1,20 @@
+server:
+  port: 8080
+  mode: debug
+
+database:
+  host: localhost
+  port: 5432
+  user: sanrio
+  password: sanrio_pass
+  dbname: sanrio_auction
+  max_conns: 10
+
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+
+jwt:
+  secret: "sanrio-auction-secret-change-in-production"
+  expire_hours: 24

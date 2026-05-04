@@ -1,0 +1,17 @@
+# Binaries
+bin/
+*.exe
+
+# Environment
+.env
+
+# Go
+vendor/
+
+# Uploads
+static/uploads/
+
+# IDE
+.idea/
+.vscode/
+*.swp

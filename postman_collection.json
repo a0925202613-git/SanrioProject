@@ -1,0 +1,329 @@
+{
+  "info": {
+    "_postman_id": "sanrio-auction-api-collection",
+    "name": "Sanrio Auction API",
+    "description": "三麗鷗商品限量搶購系統 API 測試 Collection\n\n**測試順序建議：**\n1. Auth/Register → Auth/Login（自動存入 token）\n2. Auth/Me（查看目前使用者）\n3. Products/Create → Products/List → Products/Get by ID\n4. Flash Sales/Create → 單次搶購 or 並發測試\n5. Orders/Create",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:9090", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "product_id", "value": "1", "type": "string" },
+    { "key": "flash_sale_id", "value": "1", "type": "string" },
+    { "key": "order_id", "value": "1", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/auth/register", "host": ["{{base_url}}"], "path": ["api","v1","auth","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"kitty_fan\",\n  \"email\": \"kitty@sanrio.com\",\n  \"password\": \"password123\",\n  \"balance\": 50000\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.token) {",
+                  "    pm.collectionVariables.set('token', json.data.token);",
+                  "    console.log('Token saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api","v1","auth","login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"kitty@sanrio.com\",\n  \"password\": \"password123\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/me", "host": ["{{base_url}}"], "path": ["api","v1","me"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/products?page=1&page_size=10",
+              "host": ["{{base_url}}"],
+              "path": ["api","v1","products"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "10" },
+                { "key": "character", "value": "cinnamoroll", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/products/{{product_id}}", "host": ["{{base_url}}"], "path": ["api","v1","products","{{product_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('product_id', String(json.data.id));",
+                  "    console.log('product_id saved:', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/products", "host": ["{{base_url}}"], "path": ["api","v1","products"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cinnamoroll 大耳狗玩偶 30cm\",\n  \"character\": \"cinnamoroll\",\n  \"description\": \"超軟超Q的大耳狗玩偶，限量版藍色款式\",\n  \"base_price\": 1200,\n  \"stock\": 50,\n  \"image_url\": \"https://example.com/cinnamoroll.jpg\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/products/{{product_id}}", "host": ["{{base_url}}"], "path": ["api","v1","products","{{product_id}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 100,\n  \"base_price\": 999\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/products/{{product_id}}", "host": ["{{base_url}}"], "path": ["api","v1","products","{{product_id}}"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Flash Sales",
+      "description": "限量搶購活動。safe 版使用 SELECT FOR UPDATE 防止超賣；unsafe 版無鎖，可觀察 remaining_stock 變為負數。concurrent-test 可一次發出 N 個 goroutine 同時搶購。",
+      "item": [
+        {
+          "name": "List Flash Sales",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/flash-sales", "host": ["{{base_url}}"], "path": ["api","v1","flash-sales"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Flash Sale by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/flash-sales/{{flash_sale_id}}", "host": ["{{base_url}}"], "path": ["api","v1","flash-sales","{{flash_sale_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Flash Sale",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "var now = new Date();",
+                  "var start = new Date(now.getTime() - 5000);",
+                  "var end = new Date(now.getTime() + 60 * 60 * 1000);",
+                  "pm.variables.set('sale_start', start.toISOString());",
+                  "pm.variables.set('sale_end', end.toISOString());"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('flash_sale_id', String(json.data.id));",
+                  "    console.log('flash_sale_id saved:', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/flash-sales", "host": ["{{base_url}}"], "path": ["api","v1","flash-sales"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{product_id}},\n  \"sale_price\": 800,\n  \"total_stock\": 10,\n  \"start_time\": \"{{sale_start}}\",\n  \"end_time\": \"{{sale_end}}\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Purchase (Safe) — SELECT FOR UPDATE",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/flash-sales/{{flash_sale_id}}/purchase/safe", "host": ["{{base_url}}"], "path": ["api","v1","flash-sales","{{flash_sale_id}}","purchase","safe"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Purchase (Unsafe) — 觀察超賣",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/flash-sales/{{flash_sale_id}}/purchase/unsafe", "host": ["{{base_url}}"], "path": ["api","v1","flash-sales","{{flash_sale_id}}","purchase","unsafe"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Concurrent Test (Safe) — N goroutines + 鎖",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/flash-sales/{{flash_sale_id}}/concurrent-test/safe", "host": ["{{base_url}}"], "path": ["api","v1","flash-sales","{{flash_sale_id}}","concurrent-test","safe"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goroutines\": 100\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Concurrent Test (Unsafe) — N goroutines 觀察超賣",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/flash-sales/{{flash_sale_id}}/concurrent-test/unsafe", "host": ["{{base_url}}"], "path": ["api","v1","flash-sales","{{flash_sale_id}}","concurrent-test","unsafe"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goroutines\": 100\n}"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "description": "CreateOrder 在單一 Transaction 中完成：鎖商品 → 鎖用戶 → 扣餘額 → 扣庫存 → 建訂單。任一步驟失敗全部回滾。",
+      "item": [
+        {
+          "name": "Create Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('order_id', String(json.data.id));",
+                  "    console.log('order_id saved:', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/v1/orders", "host": ["{{base_url}}"], "path": ["api","v1","orders"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{product_id}},\n  \"quantity\": 2\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List My Orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders", "host": ["{{base_url}}"], "path": ["api","v1","orders"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["api","v1","orders","{{order_id}}"] }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
