@@ -10,6 +10,7 @@ type User struct {
 	Email        string    `json:"email"`
 	PasswordHash string    `json:"-"`       // 永不回傳給前端
 	Balance      float64   `json:"balance"` // 帳戶餘額，用於購買商品與參與拍賣
+	Role         string    `json:"role"`    // 例如 "user" 或 "admin"，用於權限控制
 	TotalSpent   int       `json:"total_spent"`
 	VipLevel     string    `json:"vip_level"`
 	CreatedAt    time.Time `json:"created_at"`
@@ -22,6 +23,7 @@ type RegisterRequest struct {
 	Email    string  `json:"email" validate:"required,email"`
 	Password string  `json:"password" validate:"required,min=6"`
 	Balance  float64 `json:"balance" validate:"min=0"` // 選填，預設 0
+	Role     string  `json:"role"`                     // 例如 "user" 或 "admin"，用於權限控制
 }
 
 // LoginRequest 是 POST /auth/login 的請求體。

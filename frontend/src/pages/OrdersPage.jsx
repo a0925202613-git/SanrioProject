@@ -17,10 +17,15 @@ const STATUS_LABEL = {
   canceled:  '已取消',
 }
 
+const CHAR_EMOJI = {
+  hello_kitty: '🎀', cinnamoroll: '🐶', pompompurin: '🐾', my_melody: '🐰', kuromi: '💀',
+}
+
 const EMPTY_FORM = { product_id: '', quantity: '1' }
 
-export default function OrdersPage() {
+export default function OrdersPage({ onPurchase }) {
   const [orders, setOrders] = useState([])
+  const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -28,7 +33,12 @@ export default function OrdersPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    api.products.list(1, 100)
+      .then(data => setProducts(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [])
 
   async function load() {
     setLoading(true)
@@ -55,11 +65,25 @@ export default function OrdersPage() {
       setShowCreate(false)
       setForm(EMPTY_FORM)
       load()
+      onPurchase?.()
       setTimeout(() => setSuccess(''), 4000)
     } catch (err) {
       setError(err.message)
     } finally {
       setCreateLoading(false)
+    }
+  }
+
+  async function handleStatusChange(orderId, newStatus) {
+    const prev = orders.find(o => o.id === orderId)?.status
+    // Optimistic update
+    setOrders(os => os.map(o => o.id === orderId ? { ...o, status: newStatus } : o))
+    try {
+      await api.orders.updateStatus(orderId, newStatus)
+    } catch (err) {
+      // Rollback
+      setOrders(os => os.map(o => o.id === orderId ? { ...o, status: prev } : o))
+      alert('狀態更新失敗：' + err.message)
     }
   }
 
@@ -84,12 +108,19 @@ export default function OrdersPage() {
           </p>
           <form onSubmit={handleCreate} className="form form-grid">
             <div className="form-group">
-              <label>商品 ID *</label>
-              <input type="number" min="1" placeholder="1"
+              <label>選擇商品 *</label>
+              <select
                 value={form.product_id}
                 onChange={e => setForm(f => ({ ...f, product_id: e.target.value }))}
                 required
-              />
+              >
+                <option value="">— 選擇商品 —</option>
+                {products.map(p => (
+                  <option key={p.id} value={p.id} disabled={p.stock === 0}>
+                    {CHAR_EMOJI[p.character] || '🌸'} {p.name}（NT${Number(p.base_price).toLocaleString()}，剩 {p.stock} 件）
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="form-group">
               <label>數量 *</label>
@@ -134,12 +165,19 @@ export default function OrdersPage() {
                     <td><span className="order-id">#{o.id}</span></td>
                     <td className="text-muted">#{o.product_id}</td>
                     <td>{o.quantity}</td>
-                    <td>¥{Number(o.unit_price).toLocaleString()}</td>
-                    <td><strong>¥{Number(o.total_price).toLocaleString()}</strong></td>
+                    <td>NT${Number(o.unit_price).toLocaleString()}</td>
+                    <td><strong>NT${Number(o.total_price).toLocaleString()}</strong></td>
                     <td>
-                      <span className="status-badge" style={{ background: s.bg, color: s.color }}>
-                        {STATUS_LABEL[o.status] || o.status}
-                      </span>
+                      <select
+                        className="status-select"
+                        value={o.status}
+                        style={{ background: s.bg, color: s.color }}
+                        onChange={e => handleStatusChange(o.id, e.target.value)}
+                      >
+                        {Object.entries(STATUS_LABEL).map(([val, label]) => (
+                          <option key={val} value={val}>{label}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="text-muted">{new Date(o.created_at).toLocaleString('zh-TW')}</td>
                   </tr>

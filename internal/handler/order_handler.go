@@ -66,6 +66,11 @@ func (h *OrderHandler) GetByID(c *gin.Context) {
 // 只能更新自己的訂單；Repository 層以 userID 條件防止 IDOR。
 func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 	userID := c.GetInt64("userID")
+	role := c.GetString("role")
+	if role != "admin" { // 只有 admin 可以更新訂單狀態，其他角色會被拒絕
+		response.BadRequest(c, "only admin can update order status")
+		return
+	}
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "invalid order id")

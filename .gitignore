@@ -5,6 +5,9 @@ bin/
 # Environment
 .env
 
+# Node
+frontend/node_modules/
+
 # Go
 vendor/
 

@@ -9,4 +9,7 @@ var (
 
 	// ErrConflict 用於 UNIQUE 約束衝突，例如 email 或 username 重複。
 	ErrConflict = errors.New("record already exists")
+
+	// ErrHasRelatedRecords 用於 FK 約束衝突，例如刪除有訂單的商品。
+	ErrHasRelatedRecords = errors.New("has related records")
 )

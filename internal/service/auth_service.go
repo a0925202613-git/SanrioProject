@@ -39,6 +39,7 @@ func (s *AuthService) Register(ctx context.Context, req *model.RegisterRequest) 
 		Username: req.Username,
 		Email:    req.Email,
 		Balance:  req.Balance,
+		Role:     req.Role, // 從註冊請求中取得角色資訊,
 	}
 	return s.userRepo.Create(ctx, user, string(hash))
 }
@@ -63,7 +64,7 @@ func (s *AuthService) Login(ctx context.Context, req *model.LoginRequest) (*mode
 		return nil, ErrInvalidCredentials
 	}
 
-	token, err := s.generateToken(user.ID)
+	token, err := s.generateToken(user)
 	if err != nil {
 		return nil, err
 	}
@@ -90,12 +91,14 @@ func (s *AuthService) GetMe(ctx context.Context, userID int64) (*model.User, err
 //   - IssuedAt：token 的發行時間
 //
 // 簽名方式 HS256（HMAC-SHA256）：
-//   把 Header+Payload 用 jwtSecret 做 HMAC 運算產生簽名。
-//   驗證時只要用相同 secret 重新算一次，比對簽名是否一致即可。
-//   沒有 secret 的人就算拿到 token、改掉 Payload，簽名也會對不上 → 偽造失敗。
-func (s *AuthService) generateToken(userID int64) (string, error) {
+//
+//	把 Header+Payload 用 jwtSecret 做 HMAC 運算產生簽名。
+//	驗證時只要用相同 secret 重新算一次，比對簽名是否一致即可。
+//	沒有 secret 的人就算拿到 token、改掉 Payload，簽名也會對不上 → 偽造失敗。
+func (s *AuthService) generateToken(user *model.User) (string, error) { // 改為傳入 user 物件
 	claims := &middleware.Claims{
-		UserID: userID,
+		UserID: user.ID,
+		Role:   user.Role, // 將角色資訊放進 Token 載荷中
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(s.jwtExpireHr) * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

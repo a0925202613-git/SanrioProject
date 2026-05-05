@@ -22,14 +22,14 @@ func NewUserRepository(db *database.DB) *UserRepository {
 // RETURNING 子句讓 PostgreSQL 直接回傳插入後的資料，避免額外一次 SELECT。
 func (r *UserRepository) Create(ctx context.Context, user *model.User, passwordHash string) (*model.User, error) {
 	query := `
-		INSERT INTO users (username, email, password_hash, balance)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, username, email, balance, created_at
+		INSERT INTO users (username, email, password_hash, balance, role)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, username, email, balance, role, created_at
 	`
-	row := r.db.Pool.QueryRow(ctx, query, user.Username, user.Email, passwordHash, user.Balance)
+	row := r.db.Pool.QueryRow(ctx, query, user.Username, user.Email, passwordHash, user.Balance, user.Role)
 
 	var u model.User
-	if err := row.Scan(&u.ID, &u.Username, &u.Email, &u.Balance, &u.CreatedAt); err != nil {
+	if err := row.Scan(&u.ID, &u.Username, &u.Email, &u.Balance, &u.Role, &u.CreatedAt); err != nil {
 		return nil, err
 	}
 	return &u, nil
@@ -38,11 +38,11 @@ func (r *UserRepository) Create(ctx context.Context, user *model.User, passwordH
 // GetByEmail 查詢登入用，因此需要回傳 password_hash 以進行 bcrypt 比對。
 // 其他查詢（如 GetByID）不回傳 password_hash，降低密碼外洩風險。
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*model.User, error) {
-	query := `SELECT id, username, email, password_hash, balance, created_at FROM users WHERE email = $1`
+	query := `SELECT id, username, email, password_hash, balance, role, created_at FROM users WHERE email = $1`
 	row := r.db.Pool.QueryRow(ctx, query, email)
 
 	var u model.User
-	if err := row.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.Balance, &u.CreatedAt); err != nil {
+	if err := row.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.Balance, &u.Role, &u.CreatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}

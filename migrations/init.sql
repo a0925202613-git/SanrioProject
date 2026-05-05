@@ -5,13 +5,16 @@ CREATE TABLE IF NOT EXISTS users (
     email         VARCHAR(255) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     balance       DECIMAL(10,2) NOT NULL DEFAULT 0,
+    role          VARCHAR(20) NOT NULL DEFAULT 'buyer',       -- 身分：'admin' (賣家) 或 'buyer' (買家)
+    total_spent   DECIMAL(10,2) NOT NULL DEFAULT 0,           -- 總消費額 (用於判斷 VIP)
+    vip_level     VARCHAR(20) NOT NULL DEFAULT 'normal',      -- VIP 等級：'normal', 'silver', 'gold'
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Products
 DO $$ BEGIN
     CREATE TYPE sanrio_character AS ENUM (
-        'hello_kitty', 'cinnamoroll', 'pompompurin', 'my_melody', 'kuromi'
+        'hello_kitty', 'cinnamoroll', 'pompompurin', 'my_melody', 'kuromi', 'hangyodon', 'badtz_maru'
     );
 EXCEPTION
     WHEN duplicate_object THEN NULL;

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 
-export default function LoginPage() {
+export default function LoginPage({ onLogin }) {
   const navigate = useNavigate()
   const [tab, setTab] = useState('login')
   const [loading, setLoading] = useState(false)
@@ -23,6 +23,7 @@ export default function LoginPage() {
     try {
       const data = await api.auth.login(loginForm)
       localStorage.setItem('token', data.token)
+      onLogin?.()
       navigate('/flash-sales')
     } catch (err) {
       setError(err.message)
@@ -39,6 +40,7 @@ export default function LoginPage() {
       await api.auth.register({ ...regForm, balance: Number(regForm.balance) })
       const data = await api.auth.login({ email: regForm.email, password: regForm.password })
       localStorage.setItem('token', data.token)
+      onLogin?.()
       navigate('/flash-sales')
     } catch (err) {
       setError(err.message)
@@ -116,7 +118,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="form-group">
-              <label>初始餘額 (¥)</label>
+              <label>初始餘額 (NT$)</label>
               <input type="number" min="0"
                 value={regForm.balance}
                 onChange={e => setRegForm(f => ({ ...f, balance: e.target.value }))}

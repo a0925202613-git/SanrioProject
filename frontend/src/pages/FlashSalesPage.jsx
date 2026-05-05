@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
 
-export default function FlashSalesPage() {
+export default function FlashSalesPage({ onPurchase }) {
   const [sales, setSales] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -18,6 +18,10 @@ export default function FlashSalesPage() {
   const [unsafeResult, setUnsafeResult] = useState(null)
   const [safeLoading, setSafeLoading] = useState(false)
   const [unsafeLoading, setUnsafeLoading] = useState(false)
+
+  // 單次搶購狀態（key: sale.id）
+  const [purchaseMsgs, setPurchaseMsgs] = useState({})
+  const [purchaseLoadings, setPurchaseLoadings] = useState({})
 
   useEffect(() => {
     load()
@@ -66,6 +70,23 @@ export default function FlashSalesPage() {
       setCreateError(err.message)
     } finally {
       setCreateLoading(false)
+    }
+  }
+
+  async function handlePurchase(saleId, mode) {
+    setPurchaseLoadings(prev => ({ ...prev, [saleId]: mode }))
+    setPurchaseMsgs(prev => ({ ...prev, [saleId]: null }))
+    try {
+      const fn = mode === 'safe' ? api.flashSales.purchaseSafe : api.flashSales.purchaseUnsafe
+      await fn(saleId)
+      setPurchaseMsgs(prev => ({ ...prev, [saleId]: { ok: true, text: '搶購成功！訂單已建立' } }))
+      load()
+      onPurchase?.()
+      setTimeout(() => setPurchaseMsgs(prev => ({ ...prev, [saleId]: null })), 3000)
+    } catch (err) {
+      setPurchaseMsgs(prev => ({ ...prev, [saleId]: { ok: false, text: err.message } }))
+    } finally {
+      setPurchaseLoadings(prev => ({ ...prev, [saleId]: null }))
     }
   }
 
@@ -124,7 +145,7 @@ export default function FlashSalesPage() {
               />
             </div>
             <div className="form-group">
-              <label>搶購價格 (¥) *</label>
+              <label>搶購價格 (NT$) *</label>
               <input type="number" min="1" placeholder="800"
                 value={createForm.sale_price}
                 onChange={e => setCreateForm(f => ({ ...f, sale_price: e.target.value }))}
@@ -175,6 +196,10 @@ export default function FlashSalesPage() {
               sale={s}
               selected={String(s.id) === selectedId}
               onSelect={() => setSelectedId(String(s.id))}
+              purchaseMsg={purchaseMsgs[s.id]}
+              purchaseLoading={purchaseLoadings[s.id]}
+              onPurchaseSafe={() => handlePurchase(s.id, 'safe')}
+              onPurchaseUnsafe={() => handlePurchase(s.id, 'unsafe')}
             />
           ))}
         </div>
@@ -197,7 +222,7 @@ export default function FlashSalesPage() {
               <option value="">— 選擇搶購活動 —</option>
               {sales.map(s => (
                 <option key={s.id} value={s.id}>
-                  #{s.id} — ¥{s.sale_price} &nbsp;（剩餘 {s.remaining_stock}/{s.total_stock}）
+                  #{s.id} — NT${s.sale_price} &nbsp;（剩餘 {s.remaining_stock}/{s.total_stock}）
                 </option>
               ))}
             </select>
@@ -235,7 +260,7 @@ export default function FlashSalesPage() {
 }
 
 /* ─── 搶購活動卡片 ──────────────────────────────────────────── */
-function FlashCard({ sale, selected, onSelect }) {
+function FlashCard({ sale, selected, onSelect, purchaseMsg, purchaseLoading, onPurchaseSafe, onPurchaseUnsafe }) {
   const pct = sale.total_stock > 0
     ? Math.max(0, (sale.remaining_stock / sale.total_stock) * 100)
     : 0
@@ -251,7 +276,7 @@ function FlashCard({ sale, selected, onSelect }) {
           {selected && <span className="badge badge-primary">已選取</span>}
         </div>
       </div>
-      <div className="flash-price">¥{Number(sale.sale_price).toLocaleString()}</div>
+      <div className="flash-price">NT${Number(sale.sale_price).toLocaleString()}</div>
       <div className="stock-bar-wrap">
         <div className="stock-bar">
           <div className={`stock-bar-fill ${fill}`} style={{ width: `${pct}%` }} />
@@ -261,6 +286,36 @@ function FlashCard({ sale, selected, onSelect }) {
       <div className="flash-times">
         結束：{new Date(sale.end_time).toLocaleString('zh-TW')}
       </div>
+
+      {/* ── 單次搶購按鈕 ── */}
+      <div className="flash-purchase-btns" onClick={e => e.stopPropagation()}>
+        <button
+          className="btn btn-safe btn-sm"
+          disabled={soldOut || !!purchaseLoading}
+          onClick={onPurchaseSafe}
+        >
+          {purchaseLoading === 'safe'
+            ? <><span className="spinner" /> 處理中…</>
+            : '🔒 安全搶購'}
+        </button>
+        <button
+          className="btn btn-unsafe btn-sm"
+          disabled={soldOut || !!purchaseLoading}
+          onClick={onPurchaseUnsafe}
+        >
+          {purchaseLoading === 'unsafe'
+            ? <><span className="spinner" /> 處理中…</>
+            : '⚡ 不安全搶購'}
+        </button>
+      </div>
+      {purchaseMsg && (
+        <div
+          className={`alert ${purchaseMsg.ok ? 'alert-success' : 'alert-error'}`}
+          style={{ margin: '8px 0 0', fontSize: 13, padding: '6px 10px' }}
+        >
+          {purchaseMsg.text}
+        </div>
+      )}
     </div>
   )
 }

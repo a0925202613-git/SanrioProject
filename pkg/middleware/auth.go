@@ -10,7 +10,8 @@ import (
 )
 
 type Claims struct {
-	UserID int64 `json:"user_id"`
+	UserID int64  `json:"user_id"`
+	Role   string `json:"role"` // 將角色資訊放進 Token 載荷中
 	jwt.RegisteredClaims
 }
 
@@ -37,6 +38,7 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		}
 
 		c.Set("userID", claims.UserID)
+		c.Set("role", claims.Role) // 將角色資訊存入 Gin Context 中
 		c.Next()
 	}
 }

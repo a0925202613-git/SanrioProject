@@ -2,24 +2,23 @@ import { useState, useEffect, useRef } from 'react'
 import { api, resolveImageUrl } from '../api'
 
 const CHARACTERS = [
-  { value: '',            label: '全部',          emoji: '🌸' },
-  { value: 'hello_kitty', label: 'Hello Kitty',  emoji: '🎀' },
-  { value: 'cinnamoroll', label: 'Cinnamoroll',  emoji: '🐶' },
-  { value: 'pompompurin', label: 'Pompompurin',  emoji: '🐾' },
-  { value: 'my_melody',   label: 'My Melody',    emoji: '🐰' },
-  { value: 'kuromi',      label: 'Kuromi',       emoji: '💀' },
-  { value: 'hangyodon',  label: 'Hangyodon',     emoji: '🐟' },
-  { value: 'badtz_maru',  label: 'Badtz maru',   emoji: '🐧' },
-
+  { value: '',             label: '全部',        emoji: '🌸',  image: null },
+  { value: 'hello_kitty', label: 'Hello Kitty',  emoji: '🎀',  image: '/characters/hello-kitty.png' },
+  { value: 'cinnamoroll', label: 'Cinnamoroll',  emoji: '🐶',  image: '/characters/cinnamoroll.png' },
+  { value: 'pompompurin', label: 'Pompompurin',  emoji: '🐾',  image: '/characters/pompompurin.png' },
+  { value: 'my_melody',   label: 'My Melody',    emoji: '🐰',  image: '/characters/my-melody.png' },
+  { value: 'kuromi',      label: 'Kuromi',       emoji: '💀',  image: '/characters/kuromi.png' },
+  { value: 'hangyodon',    label: 'Hangyodon',    emoji: '🐟',  image: '/characters/hangyodon.png' },
+  { value: 'badtz_maru', label: 'Badtz-Maru', emoji: '🐧',  image: '/characters/badtz-maru.png' },
 ]
 
 const CHAR_EMOJI = {
-  hello_kitty: '🎀', cinnamoroll: '🐶', pompompurin: '🐾', my_melody: '🐰', kuromi: '💀', hangyodon: '🐟', badtz_maru: '🐧'
+  hello_kitty: '🎀', cinnamoroll: '🐶', pompompurin: '🐾', my_melody: '🐰', kuromi: '💀', hangtodon: '🐟', badtz_maru: '🐧'
 }
 
 const EMPTY_FORM = { name: '', character: 'cinnamoroll', description: '', base_price: '', stock: '', image_url: '' }
 
-export default function ProductsPage() {
+export default function ProductsPage({ onPurchase }) {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [character, setCharacter] = useState('')
@@ -34,6 +33,12 @@ export default function ProductsPage() {
   const [uploadLoading, setUploadLoading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const fileInputRef = useRef(null)
+
+  // 編輯商品相關狀態
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [editForm, setEditForm] = useState({})
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState('')
 
   const isLoggedIn = !!localStorage.getItem('token')
 
@@ -55,12 +60,10 @@ export default function ProductsPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // 立即顯示本地預覽（不等上傳完成）
     const reader = new FileReader()
     reader.onload = ev => setImagePreview(ev.target.result)
     reader.readAsDataURL(file)
 
-    // 上傳至伺服器
     setUploadLoading(true)
     setUploadError('')
     try {
@@ -104,11 +107,54 @@ export default function ProductsPage() {
     }
   }
 
+  function startEdit(p) {
+    setEditingProduct(p)
+    setEditForm({
+      name:        p.name,
+      character:   p.character,
+      description: p.description || '',
+      base_price:  String(p.base_price),
+      stock:       String(p.stock),
+      image_url:   p.image_url || '',
+    })
+    setEditError('')
+    setShowCreate(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function cancelEdit() {
+    setEditingProduct(null)
+    setEditForm({})
+    setEditError('')
+  }
+
+  async function handleEdit(e) {
+    e.preventDefault()
+    setEditLoading(true)
+    setEditError('')
+    try {
+      await api.products.update(editingProduct.id, {
+        ...editForm,
+        base_price: Number(editForm.base_price),
+        stock:      Number(editForm.stock),
+      })
+      setSuccess('商品已更新！')
+      setEditingProduct(null)
+      load()
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      setEditError(err.message)
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
   async function handleDelete(id) {
     if (!confirm('確定要刪除此商品？')) return
     try {
       await api.products.delete(id)
       setProducts(ps => ps.filter(p => p.id !== id))
+      if (editingProduct?.id === id) cancelEdit()
     } catch (err) {
       alert(err.message)
     }
@@ -121,6 +167,7 @@ export default function ProductsPage() {
         {isLoggedIn && (
           <button className="btn btn-primary" onClick={() => {
             setShowCreate(s => !s)
+            cancelEdit()
             setError('')
             setImagePreview('')
             setUploadError('')
@@ -133,6 +180,7 @@ export default function ProductsPage() {
       {success && <div className="alert alert-success">{success}</div>}
       {error   && <div className="alert alert-error">{error}</div>}
 
+      {/* ── 新增商品表單 ── */}
       {showCreate && (
         <div className="card create-form-card">
           <h2>新增商品</h2>
@@ -154,7 +202,7 @@ export default function ProductsPage() {
               </select>
             </div>
             <div className="form-group">
-              <label>定價 (¥) *</label>
+              <label>定價 (NT$) *</label>
               <input type="number" min="1" placeholder="1200"
                 value={form.base_price}
                 onChange={e => setForm(f => ({ ...f, base_price: e.target.value }))}
@@ -181,7 +229,6 @@ export default function ProductsPage() {
             <div className="form-group form-full">
               <label>商品圖片</label>
               <div className="image-upload-row">
-                {/* 預覽區 */}
                 {imagePreview ? (
                   <div className="image-preview-wrap">
                     <img src={imagePreview} alt="預覽" className="image-preview" />
@@ -198,8 +245,6 @@ export default function ProductsPage() {
                     }
                   </div>
                 )}
-
-                {/* 隱藏的 file input */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -207,8 +252,6 @@ export default function ProductsPage() {
                   style={{ display: 'none' }}
                   onChange={handleFileChange}
                 />
-
-                {/* 或直接輸入外部 URL */}
                 <div className="upload-or">或</div>
                 <div style={{ flex: 1 }}>
                   <input
@@ -234,6 +277,71 @@ export default function ProductsPage() {
         </div>
       )}
 
+      {/* ── 編輯商品表單 ── */}
+      {editingProduct && (
+        <div className="card create-form-card" style={{ borderLeft: '3px solid var(--primary)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h2>編輯商品 #{editingProduct.id}</h2>
+            <button className="btn btn-outline btn-sm" onClick={cancelEdit}>取消</button>
+          </div>
+          {editError && <div className="alert alert-error" style={{ marginBottom: 12 }}>{editError}</div>}
+          <form onSubmit={handleEdit} className="form form-grid">
+            <div className="form-group">
+              <label>商品名稱 *</label>
+              <input
+                value={editForm.name}
+                onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>角色 *</label>
+              <select value={editForm.character} onChange={e => setEditForm(f => ({ ...f, character: e.target.value }))}>
+                {CHARACTERS.filter(c => c.value).map(c => (
+                  <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>定價 (NT$) *</label>
+              <input type="number" min="1"
+                value={editForm.base_price}
+                onChange={e => setEditForm(f => ({ ...f, base_price: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>庫存 *</label>
+              <input type="number" min="0"
+                value={editForm.stock}
+                onChange={e => setEditForm(f => ({ ...f, stock: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="form-group form-full">
+              <label>商品描述</label>
+              <input
+                value={editForm.description}
+                onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div className="form-group form-full">
+              <label>圖片網址</label>
+              <input
+                placeholder="https://example.com/image.jpg 或留空移除圖片"
+                value={editForm.image_url}
+                onChange={e => setEditForm(f => ({ ...f, image_url: e.target.value }))}
+              />
+            </div>
+            <div className="form-actions form-full">
+              <button type="submit" className="btn btn-primary" disabled={editLoading}>
+                {editLoading ? '儲存中...' : '儲存變更'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="character-tabs">
         {CHARACTERS.map(c => (
           <button
@@ -241,7 +349,8 @@ export default function ProductsPage() {
             className={`char-tab ${character === c.value ? 'active' : ''}`}
             onClick={() => setCharacter(c.value)}
           >
-            {c.emoji} {c.label}
+            <CharAvatar image={c.image} emoji={c.emoji} label={c.label} />
+            <span className="char-name">{c.label}</span>
           </button>
         ))}
       </div>
@@ -259,22 +368,55 @@ export default function ProductsPage() {
               key={p.id}
               product={p}
               isLoggedIn={isLoggedIn}
+              isEditing={editingProduct?.id === p.id}
+              onEdit={startEdit}
               onDelete={handleDelete}
+              onBuySuccess={onPurchase}
             />
           ))}
         </div>
       )}
     </div>
   )
-};
+}
 
-function ProductCard({ product: p, isLoggedIn, onDelete }) {
+function CharAvatar({ image, emoji, label }) {
+  const [failed, setFailed] = useState(false)
+  return (
+    <div className="char-avatar">
+      {image && !failed
+        ? <img src={image} alt={label} onError={() => setFailed(true)} />
+        : <span className="char-emoji">{emoji}</span>
+      }
+    </div>
+  )
+}
+
+function ProductCard({ product: p, isLoggedIn, isEditing, onEdit, onDelete, onBuySuccess }) {
   const [imgError, setImgError] = useState(false)
+  const [buyLoading, setBuyLoading] = useState(false)
+  const [buyMsg, setBuyMsg] = useState(null)
+
   const src = resolveImageUrl(p.image_url)
   const showImg = src && !imgError
 
+  async function handleBuy() {
+    setBuyLoading(true)
+    setBuyMsg(null)
+    try {
+      const order = await api.orders.create({ product_id: p.id, quantity: 1 })
+      setBuyMsg({ ok: true, text: `訂單 #${order.id} 建立成功！` })
+      onBuySuccess?.()
+      setTimeout(() => setBuyMsg(null), 3000)
+    } catch (err) {
+      setBuyMsg({ ok: false, text: err.message })
+    } finally {
+      setBuyLoading(false)
+    }
+  }
+
   return (
-    <div className="product-card">
+    <div className={`product-card ${isEditing ? 'product-card-editing' : ''}`}>
       {showImg ? (
         <div className="product-img-wrap">
           <img
@@ -295,14 +437,34 @@ function ProductCard({ product: p, isLoggedIn, onDelete }) {
       </div>
 
       <div className="product-footer">
-        <span className="product-price">¥{Number(p.base_price).toLocaleString()}</span>
+        <span className="product-price">NT${Number(p.base_price).toLocaleString()}</span>
         <span className={`stock-badge ${p.stock === 0 ? 'out' : p.stock < 10 ? 'low' : 'ok'}`}>
           {p.stock === 0 ? '已售完' : `剩 ${p.stock} 件`}
         </span>
       </div>
 
       {isLoggedIn && (
-        <button className="delete-btn" title="刪除" onClick={() => onDelete(p.id)}>×</button>
+        <div className="card-actions">
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={p.stock === 0 || buyLoading}
+            onClick={handleBuy}
+          >
+            {buyLoading
+              ? <><span className="spinner" /> 處理中…</>
+              : p.stock === 0 ? '已售完' : '🛒 購買'}
+          </button>
+          <div className="card-actions-row">
+            <button className="edit-btn" onClick={() => onEdit(p)}>✏️ 編輯</button>
+            <button className="delete-btn" onClick={() => onDelete(p.id)}>× 刪除</button>
+          </div>
+          {buyMsg && (
+            <div className={`alert ${buyMsg.ok ? 'alert-success' : 'alert-error'}`}
+              style={{ fontSize: 13, padding: '6px 10px' }}>
+              {buyMsg.text}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

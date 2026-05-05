@@ -9,6 +9,7 @@ import (
 	"sanrio-auction-api/pkg/database"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type ProductRepository struct {
@@ -135,6 +136,10 @@ func (r *ProductRepository) Update(ctx context.Context, id int64, req *model.Upd
 func (r *ProductRepository) Delete(ctx context.Context, id int64) error {
 	result, err := r.db.Pool.Exec(ctx, `DELETE FROM products WHERE id = $1`, id)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+			return ErrHasRelatedRecords
+		}
 		return err
 	}
 	if result.RowsAffected() == 0 {

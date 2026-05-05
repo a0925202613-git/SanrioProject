@@ -17,6 +17,7 @@ async function request(path, opts = {}) {
   if (token) headers.Authorization = `Bearer ${token}`
 
   const res = await fetch(BASE + path, { ...opts, headers })
+  if (res.status === 204) return null
   const json = await res.json()
   if (!res.ok) throw new Error(json.message || 'Request failed')
   return json.data
@@ -69,5 +70,6 @@ export const api = {
     list: () => request('/orders'),
     get: id => request(`/orders/${id}`),
     create: b => request('/orders', { method: 'POST', body: JSON.stringify(b) }),
+    updateStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   },
 }

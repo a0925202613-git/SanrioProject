@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"sanrio-auction-api/internal/model"
+	"sanrio-auction-api/internal/repository"
 	"sanrio-auction-api/internal/service"
 	"sanrio-auction-api/pkg/response"
 
@@ -24,6 +26,11 @@ func NewProductHandler(productService *service.ProductService) *ProductHandler {
 // Create 處理 POST /api/v1/products，需要 JWT 認證。
 // 建立成功後同時讓 Redis 的商品列表快取失效（由 Service 層負責）。
 func (h *ProductHandler) Create(c *gin.Context) {
+	role := c.GetString("role")
+	if role != "admin" {
+		response.BadRequest(c, "only admin can create products")
+		return
+	}
 	var req model.CreateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -111,6 +118,10 @@ func (h *ProductHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.productService.Delete(c.Request.Context(), id); err != nil {
+		if errors.Is(err, repository.ErrHasRelatedRecords) {
+			response.Conflict(c, "此商品已有訂單，無法刪除")
+			return
+		}
 		response.NotFound(c, "product not found")
 		return
 	}
